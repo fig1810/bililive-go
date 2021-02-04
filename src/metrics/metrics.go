@@ -17,7 +17,7 @@ var liveStatusGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
 	Namespace: "bgo",
 	Name:      "live_status",
 	Help:      "live status",
-}, []string{"live_id", "live_url", "live_host_name", "live_room_name"})
+}, []string{"live_id", "live_url", "live_host_name", "live_room_name", "live_listening"})
 
 type collector struct{}
 
@@ -27,12 +27,16 @@ func NewCollector() interfaces.Module {
 
 func (collector) callback(ctx context.Context, eventType events.EventType) events.EventHandler {
 	return func(event *events.Event) {
-		var value float64
+		var (
+			value         float64
+			liveListening = "true"
+		)
 		switch eventType {
 		case listeners.ListenStart, listeners.LiveEnd:
 			value = 0
 		case listeners.ListenStop:
-			value = -1
+			value = 0
+			liveListening = "false"
 		case listeners.LiveStart:
 			value = 1
 		}
@@ -52,6 +56,7 @@ func (collector) callback(ctx context.Context, eventType events.EventType) event
 			l.GetRawUrl(),
 			info.HostName,
 			info.RoomName,
+			liveListening,
 		).Set(value)
 	}
 }
