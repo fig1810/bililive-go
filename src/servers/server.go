@@ -8,6 +8,7 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rakyll/statik/fs"
 
 	"github.com/hr3lxphr6j/bililive-go/src/instance"
@@ -49,6 +50,7 @@ func initMux(ctx context.Context) *mux.Router {
 	apiRoute.HandleFunc("/lives/{id}", getLive).Methods("GET")
 	apiRoute.HandleFunc("/lives/{id}", removeLive).Methods("DELETE")
 	apiRoute.HandleFunc("/lives/{id}/{action}", parseLiveAction).Methods("GET")
+	apiRoute.Handle("/metrics", promhttp.Handler())
 
 	statikFS, err := fs.New()
 	if err != nil {

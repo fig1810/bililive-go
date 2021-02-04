@@ -18,6 +18,7 @@ import (
 	"github.com/hr3lxphr6j/bililive-go/src/listeners"
 	"github.com/hr3lxphr6j/bililive-go/src/live"
 	"github.com/hr3lxphr6j/bililive-go/src/log"
+	"github.com/hr3lxphr6j/bililive-go/src/metrics"
 	"github.com/hr3lxphr6j/bililive-go/src/pkg/events"
 	"github.com/hr3lxphr6j/bililive-go/src/pkg/utils"
 	"github.com/hr3lxphr6j/bililive-go/src/recorders"
@@ -96,6 +97,8 @@ func main() {
 	if err := rm.Start(ctx); err != nil {
 		logger.Fatalf("failed to init recorder manager, error: %s", err)
 	}
+
+	_ = metrics.NewCollector().Start(ctx)
 
 	for _, _live := range inst.Lives {
 		if err := lm.AddListener(ctx, _live); err != nil {

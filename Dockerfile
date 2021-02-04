@@ -17,7 +17,7 @@ RUN apk update && \
 
 # Build Backend Start
 
-FROM golang:1.15.6-alpine AS GO_BUILD
+FROM golang:1.15.7-alpine AS GO_BUILD
 
 COPY --from=NODE_BUILD /bililive-go/ /go/src/github.com/hr3lxphr6j/bililive-go/
 
