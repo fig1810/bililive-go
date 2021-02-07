@@ -98,7 +98,9 @@ func main() {
 		logger.Fatalf("failed to init recorder manager, error: %s", err)
 	}
 
-	_ = metrics.NewCollector().Start(ctx)
+	if err = metrics.NewCollector(ctx).Start(ctx); err != nil {
+		logger.Fatalf("failed to init metrics collector, error: %s", err)
+	}
 
 	for _, _live := range inst.Lives {
 		if err := lm.AddListener(ctx, _live); err != nil {
