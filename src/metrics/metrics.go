@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -19,6 +20,12 @@ var (
 		prometheus.BuildFQName("bgo", "", "live_status"),
 		"live status",
 		[]string{"live_id", "live_url", "live_host_name", "live_room_name", "live_listening"},
+		nil,
+	)
+	liveDurationSeconds = prometheus.NewDesc(
+		prometheus.BuildFQName("bgo", "", "live_duration_seconds"),
+		"live status",
+		[]string{"live_id", "live_url", "live_host_name", "live_room_name"},
 		nil,
 	)
 	recorderTotalBytes = prometheus.NewDesc(
@@ -64,6 +71,13 @@ func (c collector) Collect(ch chan<- prometheus.Metric) {
 			string(id), l.GetRawUrl(), info.HostName, info.RoomName, fmt.Sprintf("%v", listening),
 		)
 
+		if info.Status {
+			ch <- prometheus.MustNewConstMetric(
+				liveDurationSeconds, prometheus.CounterValue, float64(time.Now().Sub(l.GetLastStartTime())),
+				string(id), l.GetRawUrl(), info.HostName, info.RoomName,
+			)
+		}
+
 		if r, err := c.inst.RecorderManager.(recorders.Manager).GetRecorder(context.Background(), id); err == nil {
 			if status, err := r.GetStatus(); err == nil {
 				if value, err := strconv.ParseFloat(status["total_size"], 64); err == nil {
@@ -77,6 +91,7 @@ func (c collector) Collect(ch chan<- prometheus.Metric) {
 
 func (collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- liveStatus
+	ch <- liveDurationSeconds
 	ch <- recorderTotalBytes
 }
 
