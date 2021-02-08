@@ -71,7 +71,7 @@ func (c collector) Collect(ch chan<- prometheus.Metric) {
 				string(id), l.GetRawUrl(), info.HostName, info.RoomName, fmt.Sprintf("%v", listening),
 			)
 
-			if listening {
+			if info.Status && listening {
 				ch <- prometheus.MustNewConstMetric(
 					liveDurationSeconds, prometheus.CounterValue, time.Now().Sub(l.GetLastStartTime()).Seconds(),
 					string(id), l.GetRawUrl(), info.HostName, info.RoomName,
