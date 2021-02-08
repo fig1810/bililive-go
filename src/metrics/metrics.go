@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -54,39 +55,45 @@ func bool2float64(b bool) float64 {
 }
 
 func (c collector) Collect(ch chan<- prometheus.Metric) {
+	wg := sync.WaitGroup{}
 	for id, l := range c.inst.Lives {
-		var info *live.Info
-		obj, err := c.inst.Cache.Get(l)
-		if err != nil {
-			info, err = l.GetInfo()
+		wg.Add(1)
+		go func(id live.ID, l live.Live) {
+			defer wg.Done()
+			var info *live.Info
+			obj, err := c.inst.Cache.Get(l)
 			if err != nil {
-				return
+				info, err = l.GetInfo()
+				if err != nil {
+					return
+				}
+			} else {
+				info = obj.(*live.Info)
 			}
-		} else {
-			info = obj.(*live.Info)
-		}
-		listening := c.inst.ListenerManager.(listeners.Manager).HasListener(context.Background(), id)
-		ch <- prometheus.MustNewConstMetric(
-			liveStatus, prometheus.GaugeValue, bool2float64(info.Status),
-			string(id), l.GetRawUrl(), info.HostName, info.RoomName, fmt.Sprintf("%v", listening),
-		)
-
-		if info.Status {
+			listening := c.inst.ListenerManager.(listeners.Manager).HasListener(context.Background(), id)
 			ch <- prometheus.MustNewConstMetric(
-				liveDurationSeconds, prometheus.CounterValue, time.Now().Sub(l.GetLastStartTime()).Seconds(),
-				string(id), l.GetRawUrl(), info.HostName, info.RoomName,
+				liveStatus, prometheus.GaugeValue, bool2float64(info.Status),
+				string(id), l.GetRawUrl(), info.HostName, info.RoomName, fmt.Sprintf("%v", listening),
 			)
-		}
 
-		if r, err := c.inst.RecorderManager.(recorders.Manager).GetRecorder(context.Background(), id); err == nil {
-			if status, err := r.GetStatus(); err == nil {
-				if value, err := strconv.ParseFloat(status["total_size"], 64); err == nil {
-					ch <- prometheus.MustNewConstMetric(recorderTotalBytes, prometheus.CounterValue, value,
-						string(id), l.GetRawUrl(), info.HostName, info.RoomName)
+			if info.Status {
+				ch <- prometheus.MustNewConstMetric(
+					liveDurationSeconds, prometheus.CounterValue, time.Now().Sub(l.GetLastStartTime()).Seconds(),
+					string(id), l.GetRawUrl(), info.HostName, info.RoomName,
+				)
+
+				if r, err := c.inst.RecorderManager.(recorders.Manager).GetRecorder(context.Background(), id); err == nil {
+					if status, err := r.GetStatus(); err == nil {
+						if value, err := strconv.ParseFloat(status["total_size"], 64); err == nil {
+							ch <- prometheus.MustNewConstMetric(recorderTotalBytes, prometheus.CounterValue, value,
+								string(id), l.GetRawUrl(), info.HostName, info.RoomName)
+						}
+					}
 				}
 			}
-		}
+		}(id, l)
 	}
+	wg.Wait()
 }
 
 func (collector) Describe(ch chan<- *prometheus.Desc) {
