@@ -60,23 +60,18 @@ func (c collector) Collect(ch chan<- prometheus.Metric) {
 		wg.Add(1)
 		go func(id live.ID, l live.Live) {
 			defer wg.Done()
-			var info *live.Info
 			obj, err := c.inst.Cache.Get(l)
 			if err != nil {
-				info, err = l.GetInfo()
-				if err != nil {
-					return
-				}
-			} else {
-				info = obj.(*live.Info)
+				return
 			}
+			info := obj.(*live.Info)
 			listening := c.inst.ListenerManager.(listeners.Manager).HasListener(context.Background(), id)
 			ch <- prometheus.MustNewConstMetric(
 				liveStatus, prometheus.GaugeValue, bool2float64(info.Status),
 				string(id), l.GetRawUrl(), info.HostName, info.RoomName, fmt.Sprintf("%v", listening),
 			)
 
-			if info.Status {
+			if listening {
 				ch <- prometheus.MustNewConstMetric(
 					liveDurationSeconds, prometheus.CounterValue, time.Now().Sub(l.GetLastStartTime()).Seconds(),
 					string(id), l.GetRawUrl(), info.HostName, info.RoomName,
