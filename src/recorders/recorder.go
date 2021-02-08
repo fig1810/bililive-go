@@ -62,6 +62,7 @@ var defaultFileNameTmpl = template.Must(template.New("filename").Funcs(utils.Get
 type Recorder interface {
 	Start() error
 	StartTime() time.Time
+	GetStatus() (map[string]string, error)
 	Close()
 }
 
@@ -204,4 +205,12 @@ func (r *recorder) getFields() map[string]interface{} {
 		"host": info.HostName,
 		"room": info.RoomName,
 	}
+}
+
+func (r *recorder) GetStatus() (map[string]string, error) {
+	statusP, ok := r.getParser().(parser.StatusParser)
+	if !ok {
+		return nil, ErrParserNotSupportStatus
+	}
+	return statusP.Status()
 }

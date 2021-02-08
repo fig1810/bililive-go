@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -10,13 +11,22 @@ import (
 	"github.com/hr3lxphr6j/bililive-go/src/interfaces"
 	"github.com/hr3lxphr6j/bililive-go/src/listeners"
 	"github.com/hr3lxphr6j/bililive-go/src/live"
+	"github.com/hr3lxphr6j/bililive-go/src/recorders"
 )
 
-var liveStatus = prometheus.NewDesc(
-	prometheus.BuildFQName("bgo", "", "live_status"),
-	"live status",
-	[]string{"live_id", "live_url", "live_host_name", "live_room_name", "live_listening"},
-	nil,
+var (
+	liveStatus = prometheus.NewDesc(
+		prometheus.BuildFQName("bgo", "", "live_status"),
+		"live status",
+		[]string{"live_id", "live_url", "live_host_name", "live_room_name", "live_listening"},
+		nil,
+	)
+	recorderTotalBytes = prometheus.NewDesc(
+		prometheus.BuildFQName("bgo", "", "recorder_total_bytes"),
+		"recorder total bytes",
+		[]string{"live_id", "live_url", "live_host_name", "live_room_name"},
+		nil,
+	)
 )
 
 type collector struct {
@@ -53,11 +63,21 @@ func (c collector) Collect(ch chan<- prometheus.Metric) {
 			liveStatus, prometheus.GaugeValue, bool2float64(info.Status),
 			string(id), l.GetRawUrl(), info.HostName, info.RoomName, fmt.Sprintf("%v", listening),
 		)
+
+		if r, err := c.inst.RecorderManager.(recorders.Manager).GetRecorder(context.Background(), id); err == nil {
+			if status, err := r.GetStatus(); err == nil {
+				if value, err := strconv.ParseFloat(status["total_size"], 64); err == nil {
+					ch <- prometheus.MustNewConstMetric(recorderTotalBytes, prometheus.CounterValue, value,
+						string(id), l.GetRawUrl(), info.HostName, info.RoomName)
+				}
+			}
+		}
 	}
 }
 
 func (collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- liveStatus
+	ch <- recorderTotalBytes
 }
 
 func (c *collector) Start(_ context.Context) error {

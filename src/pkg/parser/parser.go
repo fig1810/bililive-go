@@ -17,6 +17,11 @@ type Parser interface {
 	Stop() error
 }
 
+type StatusParser interface {
+	Parser
+	Status() (map[string]string, error)
+}
+
 var m = make(map[string]Builder)
 
 func Register(name string, b Builder) {
